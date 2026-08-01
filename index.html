@@ -363,8 +363,8 @@
       <p class="sub">No obligation. No cost. Two minutes.</p>
       <a class="phone-btn" href="tel:+19048508900">Call (904) 850-8900 Now</a>
       <div class="or-divider">or submit your address</div>
-      <form id="leadFormTop" action="#" method="POST">
-        <input type="text" name="address" placeholder="Property Address" required>
+      <form id="leadFormTop" class="lead-form">
+        <input type="text" name="address" placeholder="Property Address" required minlength="5">
         <input type="tel" name="phone" placeholder="Phone Number" required>
         <button class="submit-btn" type="submit">Get My Cash Offer</button>
       </form>
@@ -470,8 +470,8 @@
       <p class="sub">No obligation. No cost. Two minutes.</p>
       <a class="phone-btn" href="tel:+19048508900">Call (904) 850-8900 Now</a>
       <div class="or-divider">or submit your address</div>
-      <form id="leadFormBottom" action="#" method="POST">
-        <input type="text" name="address" placeholder="Property Address" required>
+      <form id="leadFormBottom" class="lead-form">
+        <input type="text" name="address" placeholder="Property Address" required minlength="5">
         <input type="tel" name="phone" placeholder="Phone Number" required>
         <button class="submit-btn" type="submit">Get My Cash Offer</button>
       </form>
@@ -485,20 +485,55 @@
 </footer>
 
 <script>
-  // Lead capture: forms POST to the configured endpoint (Airtable webhook/Zapier) once wired.
-  // Placeholder handler until endpoint is live — replace ENDPOINT_URL below.
-  const ENDPOINT_URL = "";
+  // Lead capture: same GHL webhook as procashbuyers-site — feeds Households (Airtable SSOT)
+  // via the existing lead pipeline. See reference_leads_table_architecture memory.
+  var WEBHOOK_URL = "https://services.leadconnectorhq.com/hooks/KTrLkftu63ir51NcLOfP/webhook-trigger/ed2db401-661d-4d27-8457-6b8ab5d54dcf";
+
   function handleSubmit(form){
+    if(!form) return;
+    var busy = false;
     form.addEventListener("submit", function(e){
       e.preventDefault();
-      if(!ENDPOINT_URL){
-        alert("Thanks — we'll be in touch shortly. (Lead capture endpoint not yet connected.)");
+      if(busy) return;
+      var address = form.querySelector('[name="address"]').value.trim();
+      var phone = form.querySelector('[name="phone"]').value.trim();
+      if(address.length < 5 || phone.replace(/\D/g,'').length < 10){
+        alert("Please enter a valid address and phone number.");
         return;
       }
-      const data = new FormData(form);
-      fetch(ENDPOINT_URL, { method:"POST", body:data })
-        .then(()=>{ alert("Got it — we'll call you shortly."); form.reset(); })
-        .catch(()=>{ alert("Something went wrong. Please call us instead."); });
+      busy = true;
+      var btn = form.querySelector('button[type="submit"]');
+      var originalText = btn.textContent;
+      btn.textContent = "Sending…"; btn.disabled = true;
+
+      var payload = {
+        address: address,
+        phone: phone,
+        source: "violationexit.com",
+        situation: "Code Violation",
+        page_url: window.location.href,
+        submitted_at: new Date().toISOString()
+      };
+
+      fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      .then(function(res){
+        if(!res.ok) throw new Error("Webhook failed");
+        alert("Got it — we'll call you shortly.");
+        form.reset();
+      })
+      .catch(function(err){
+        alert("Something went wrong. Please call us at (904) 850-8900 instead.");
+        console.error(err);
+      })
+      .finally(function(){
+        busy = false;
+        btn.disabled = false;
+        btn.textContent = originalText;
+      });
     });
   }
   handleSubmit(document.getElementById("leadFormTop"));
